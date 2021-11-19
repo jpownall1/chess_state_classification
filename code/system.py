@@ -63,6 +63,16 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     Returns:
         np.ndarray: The reduced feature vectors.
     """
+    #When running evaluate i get the error: boolean index did not match indexed array along dimension 0; dimension 
+    #is 1600 but corresponding boolean dimension is 6400
+    # When just running train,  it works ok, but when evaluating another part of the dictionary uses this method -
+    # the key is "fvectors_train", I dont understand what this is for?
+    print(model.keys())                                 #dict_keys(['labels_train', 'fvectors_train'])
+    print(np.array(model['fvectors_train']).shape)      #(40, 10)
+    print(np.array(model['labels_train']).shape)        #(6400,)
+    print(data.shape)                                   #(1600, 2500)
+    print(np.array(model['fvectors_train']))
+
     labels = np.array(model['labels_train'])
     d12_pairs = []
     for i in CLASS_LABELS:
@@ -85,10 +95,8 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     covx = np.cov(new_data, rowvar=0)
     N = covx.shape[0]
     w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1))  #gets the last 10 eigenvectors
-    v = np.fliplr(v) #v is the eigenvectors
+    v = np.fliplr(v)                                         #v is the eigenvectors
     pca_data = np.dot((new_data - np.mean(new_data)), v)     #this is in the form y=Ax, where v is A and x is the feature vector
-                                                             #pca data has minuses - shouldnt it just be a reduction of features? 
-                                                             #how to get back to feature values
     
     return pca_data
 
