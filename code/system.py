@@ -8,12 +8,15 @@ produce a very poor result.
 
 version: v1.0
 """
+
+#notes - ask about !reducing demensions using diveergence without labels! !is my NN algorithm correct! 
 from typing import List
 
 import numpy as np
 import scipy.linalg
 
 N_DIMENSIONS = 10
+CLASS_LABELS = [".", "r", "R", "p", "P", "k", "K", "b", "B", "q", "Q", "n", "N"]
 
 
 def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> List[str]:
@@ -41,22 +44,11 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     x = np.dot(test, train.transpose())
     modtest = np.sqrt(np.sum(test * test, axis=1))
     modtrain = np.sqrt(np.sum(train * train, axis=1))
-    dist = x / np.outer(modtest, modtrain.transpose())  # cosine distance
+    dist = x / np.outer(modtest, modtrain.transpose())     # cosine distance
     nearest = np.argmax(dist, axis=1)
-    mdist = np.max(dist, axis=1)
     label = train_labels[nearest]
     
     return label
-
-
-# The functions below must all be provided in your solution. Think of them
-# as an API that it used by the train.py and evaluate.py programs.
-# If you don't provide them, then the train.py and evaluate.py programs will not run.
-#
-# The contents of these functions are up to you but their signatures (i.e., their names,
-# list of parameters and return types) must not be changed. The trivial implementations
-# below are provided as examples and will produce a result, but the score will be low.
-
 
 def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     """Reduce the dimensionality of a set of feature vectors down to N_DIMENSIONS.
@@ -71,12 +63,33 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     Returns:
         np.ndarray: The reduced feature vectors.
     """
-    covx = np.cov(data, rowvar=0)
-    N = covx.shape[0]
-    w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1))
-    v = np.fliplr(v)
-    pca_data = np.dot((data - np.mean(data)), v)
+    labels = np.array(model['labels_train'])
+    d12_pairs = []
+    for i in CLASS_LABELS:
+        for j in CLASS_LABELS:
+            if i != j:
+                adata = data[labels == i, :]
+                bdata = data[labels == j, :]
+                try:
+                    d12 = divergence(adata, bdata)
+                    d12_pairs.append(d12)
+                except:
+                    print("Divide by 0 occured")
+                
 
+    avg_d12 = np.sum(d12_pairs, axis = 0)
+    sorted_indexes = np.argsort(-avg_d12)
+    features = sorted_indexes[0:40]
+
+    new_data = data[features]
+    covx = np.cov(new_data, rowvar=0)
+    N = covx.shape[0]
+    w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1))  #gets the last 10 eigenvectors
+    v = np.fliplr(v) #v is the eigenvectors
+    pca_data = np.dot((new_data - np.mean(new_data)), v)     #this is in the form y=Ax, where v is A and x is the feature vector
+                                                             #pca data has minuses - shouldnt it just be a reduction of features? 
+                                                             #how to get back to feature values
+    
     return pca_data
 
 
@@ -168,3 +181,24 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     """
 
     return classify_squares(fvectors_test, model)
+
+def divergence(class1, class2):
+    """compute a vector of 1-D divergences
+    
+    class1 - data matrix for class 1, each row is a sample
+    class2 - data matrix for class 2
+    
+    returns: d12 - a vector of 1-D divergence scores
+    """
+    # Compute the mean and variance of each feature vector element
+    m1 = np.mean(class1, axis=0)
+    m2 = np.mean(class2, axis=0)
+    v1 = np.var(class1, axis=0)
+    v2 = np.var(class2, axis=0)
+
+    # Plug mean and variances into the formula for 1-D divergence.
+    # (Note that / and * are being used to compute multiple 1-D
+    #  divergences without the need for a loop)
+    d12 = 0.5 * (v1 / v2 + v2 / v1 - 2) + 0.5 * (m1 - m2) * (m1 - m2) * (1.0 / v1 + 1.0 / v2)
+
+    return d12
