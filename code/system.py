@@ -9,7 +9,6 @@ produce a very poor result.
 version: v1.0
 """
 
-#notes - ask about !reducing demensions using diveergence without labels! !is my NN algorithm correct! 
 from typing import List
 
 import numpy as np
@@ -37,6 +36,10 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     #train_labels.shape = 6400 1D array (each corresponding class label to trains features)
     #label.shape = 1600
 
+    model = process_training_data(train, train_labels)
+    train_fvector = np.array(model['fvectors_train'])
+    print(train_fvector[1])
+
     features = np.arange(0, train.shape[1])
     train = train[:, features]
     test = test[:, features]
@@ -50,11 +53,11 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     
     return label
 
+
 def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     """Reduce the dimensionality of a set of feature vectors down to N_DIMENSIONS.
 
     The feature vectors are stored in the rows of 2-D array data, (i.e., a data matrix).
-    The dummy implementation below simply returns the first N_DIMENSIONS columns.
 
     Args:
         data (np.ndarray): The feature vectors to reduce.
@@ -63,16 +66,21 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     Returns:
         np.ndarray: The reduced feature vectors.
     """
-    #When running evaluate i get the error: boolean index did not match indexed array along dimension 0; dimension 
-    #is 1600 but corresponding boolean dimension is 6400
+    #When running evaluate i get the error: 'boolean index did not match indexed array along dimension 0; dimension 
+    #is 1600 but corresponding boolean dimension is 6400'
     # When just running train,  it works ok, but when evaluating another part of the dictionary uses this method -
     # the key is "fvectors_train", I dont understand what this is for?
-    print(model.keys())                                 #dict_keys(['labels_train', 'fvectors_train'])
-    print(np.array(model['fvectors_train']).shape)      #(40, 10)
-    print(np.array(model['labels_train']).shape)        #(6400,)
-    print(data.shape)                                   #(1600, 2500)
-    print(np.array(model['fvectors_train']))
+    # print(model.keys())                                #dict_keys(['labels_train', 'fvectors_train'])
+    #print(np.array(model['fvectors_train']).shape)      #(6400, 10)
+    #print(np.array(model['labels_train']).shape)        #(6400,)
+    #print(data.shape)                                   #(1600, 2500)
+    #print(np.array(model['fvectors_train']))            #just eigen values (i think?)
+    #print(new_data.shape)
+    #----------------------------------------------------------------------------------------------------------------------
 
+    if 'fvectors_train' in model:
+        return np.array(model['fvectors_train'])
+    
     labels = np.array(model['labels_train'])
     d12_pairs = []
     for i in CLASS_LABELS:
@@ -91,7 +99,7 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     sorted_indexes = np.argsort(-avg_d12)
     features = sorted_indexes[0:40]
 
-    new_data = data[features]
+    new_data = data[:,features]
     covx = np.cov(new_data, rowvar=0)
     N = covx.shape[0]
     w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1))  #gets the last 10 eigenvectors
@@ -99,6 +107,7 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     pca_data = np.dot((new_data - np.mean(new_data)), v)     #this is in the form y=Ax, where v is A and x is the feature vector
     
     return pca_data
+
 
 
 def process_training_data(fvectors_train: np.ndarray, labels_train: np.ndarray) -> dict:
@@ -118,10 +127,12 @@ def process_training_data(fvectors_train: np.ndarray, labels_train: np.ndarray) 
     # The design of this is entirely up to you.
     # Note, if you are using an instance based approach, e.g. a nearest neighbour,
     # then the model will need to store the dimensionally-reduced training data and labels.
+    
     model = {}
     model["labels_train"] = labels_train.tolist()
     fvectors_train_reduced = reduce_dimensions(fvectors_train, model)
     model["fvectors_train"] = fvectors_train_reduced.tolist()
+    
     return model
 
 
