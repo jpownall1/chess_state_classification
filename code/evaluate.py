@@ -72,6 +72,8 @@ def evaluate(image_dir: str, model_data: dict, board_metadata: list) -> Tuple[fl
 
     # Classify and evaluate in full board mode. Feature vectors are in board order.
     output_labels_board = system.classify_boards(fvectors_reduced, model_data)
+    print(np.array(true_labels).shape)
+    print(output_labels_board.shape)
     score_board = 100.0 * np.sum(output_labels_board == np.array(true_labels)) / len(true_labels)
 
     # Shuffle everything so that board position cannot be inferred from the order

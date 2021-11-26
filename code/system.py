@@ -36,13 +36,6 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     #train_labels.shape = 6400 1D array (each corresponding class label to trains features)
     #label.shape = 1600
 
-    model = process_training_data(train, train_labels)
-    train_fvector = np.array(model['fvectors_train'])
-    print(train_fvector[1])
-
-    features = np.arange(0, train.shape[1])
-    train = train[:, features]
-    test = test[:, features]
     n_images = test.shape[0]
     x = np.dot(test, train.transpose())
     modtest = np.sqrt(np.sum(test * test, axis=1))
@@ -71,23 +64,33 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     # When just running train,  it works ok, but when evaluating another part of the dictionary uses this method -
     # the key is "fvectors_train", I dont understand what this is for?
     # print(model.keys())                                #dict_keys(['labels_train', 'fvectors_train'])
-    #print(np.array(model['fvectors_train']).shape)      #(6400, 10)
-    #print(np.array(model['labels_train']).shape)        #(6400,)
-    #print(data.shape)                                   #(1600, 2500)
-    #print(np.array(model['fvectors_train']))            #just eigen values (i think?)
-    #print(new_data.shape)
+    # print(np.array(model['fvectors_train']).shape)      #(6400, 10)
+    # print(np.array(model['labels_train']).shape)        #(6400,)
+    # print(data.shape)                                   #(1600, 2500)
+    # print(np.array(model['fvectors_train']))            #just eigen values (i think?)
+    # print(new_data.shape)
     #----------------------------------------------------------------------------------------------------------------------
+    #Using the PCA and learning the A matrix to transform 40 dimensions
+    v = np.array(model['eigen_vectors'])
 
-    if 'fvectors_train' in model:
-        return np.array(model['fvectors_train'])
+    # compute the mean vector
+    datamean = np.mean(data)
+
+    # subtract mean from all data points
+    centered = data - datamean
+
+    # project points onto PCA axes
+    pca_data = np.dot(centered, v)
     
+    """
+    #then finding out which 10 of those features to use 
     labels = np.array(model['labels_train'])
     d12_pairs = []
     for i in CLASS_LABELS:
         for j in CLASS_LABELS:
             if i != j:
-                adata = data[labels == i, :]
-                bdata = data[labels == j, :]
+                adata = pca_data[labels == i, :]
+                bdata = pca_data[labels == j, :]
                 try:
                     d12 = divergence(adata, bdata)
                     d12_pairs.append(d12)
@@ -97,14 +100,9 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
 
     avg_d12 = np.sum(d12_pairs, axis = 0)
     sorted_indexes = np.argsort(-avg_d12)
-    features = sorted_indexes[0:40]
-
-    new_data = data[:,features]
-    covx = np.cov(new_data, rowvar=0)
-    N = covx.shape[0]
-    w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1))  #gets the last 10 eigenvectors
-    v = np.fliplr(v)                                         #v is the eigenvectors
-    pca_data = np.dot((new_data - np.mean(new_data)), v)     #this is in the form y=Ax, where v is A and x is the feature vector
+    features = sorted_indexes[0:10]
+    new_data = pca_data[:,features]
+    """
     
     return pca_data
 
@@ -130,6 +128,7 @@ def process_training_data(fvectors_train: np.ndarray, labels_train: np.ndarray) 
     
     model = {}
     model["labels_train"] = labels_train.tolist()
+    model["eigen_vectors"] = myPCAEV(fvectors_train, 10).tolist()
     fvectors_train_reduced = reduce_dimensions(fvectors_train, model)
     model["fvectors_train"] = fvectors_train_reduced.tolist()
     
@@ -221,3 +220,14 @@ def divergence(class1, class2):
     d12 = 0.5 * (v1 / v2 + v2 / v1 - 2) + 0.5 * (m1 - m2) * (m1 - m2) * (1.0 / v1 + 1.0 / v2)
 
     return d12
+
+def myPCAEV(data, n):
+    """Apply PCA to reduce dimensionality of data matrix to n dimensions."""
+    # compute data covariance matrix
+    covx = np.cov(data, rowvar=0)
+    # compute first N pca axes
+    n_orig = covx.shape[0]
+    [d, v] = scipy.linalg.eigh(covx, eigvals=(n_orig - n, n_orig - 1))
+    v = np.fliplr(v)
+
+    return v
