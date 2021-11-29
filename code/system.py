@@ -35,6 +35,7 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     #test.shape = 1600, 10 (so each individual image (25 images, 64 places) and its 10 features)
     #train_labels.shape = 6400 1D array (each corresponding class label to trains features)
     #label.shape = 1600
+    
 
     n_images = test.shape[0]
     x = np.dot(test, train.transpose())
@@ -81,6 +82,8 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
 
     # project points onto PCA axes
     pca_data = np.dot(centered, v)
+
+
     
     """
     #then finding out which 10 of those features to use 
@@ -187,9 +190,6 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     you can infer the position on the board from the position of the feature vector
     in the feature vector array.
 
-    In the dummy code below, we just re-use the simple classify_squares function,
-    i.e. we ignore the ordering.
-
     Args:
         fvectors_test (np.ndarray): An array in which feature vectors are stored as rows.
         model (dict): A dictionary storing the model data.
@@ -197,7 +197,10 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     Returns:
         list[str]: A list of one-character strings representing the labels for each square.
     """
-
+    boards = split_to_boards(fvectors_test)
+    print(boards)
+    print(fvectors_test.shape)
+    print(model.keys())
     return classify_squares(fvectors_test, model)
 
 def divergence(class1, class2):
@@ -231,3 +234,10 @@ def myPCAEV(data, n):
     v = np.fliplr(v)
 
     return v
+
+def split_to_boards(data: np.ndarray):
+    num_squares = data.shape[0]
+    num_boards = num_squares/64
+    toReturn = np.zeros((num_boards, 64, 10))
+    for i in range(num_boards):
+        toReturn[i] = data[64*(i):64*(i+1), :]
