@@ -36,16 +36,7 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     #train_labels.shape = 6400 1D array (each corresponding class label to trains features)
     #label.shape = 1600
     
-
-    n_images = test.shape[0]
-    x = np.dot(test, train.transpose())
-    modtest = np.sqrt(np.sum(test * test, axis=1))
-    modtrain = np.sqrt(np.sum(train * train, axis=1))
-    dist = x / np.outer(modtest, modtrain.transpose())     # cosine distance
-    nearest = np.argmax(dist, axis=1)
-    label = train_labels[nearest]
-    
-    return label
+    return myNN(train, train_labels, test, 1)
 
 
 def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
@@ -82,30 +73,6 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
 
     # project points onto PCA axes
     pca_data = np.dot(centered, v)
-
-
-    
-    """
-    #then finding out which 10 of those features to use 
-    labels = np.array(model['labels_train'])
-    d12_pairs = []
-    for i in CLASS_LABELS:
-        for j in CLASS_LABELS:
-            if i != j:
-                adata = pca_data[labels == i, :]
-                bdata = pca_data[labels == j, :]
-                try:
-                    d12 = divergence(adata, bdata)
-                    d12_pairs.append(d12)
-                except:
-                    print("Divide by 0 occured")
-                
-
-    avg_d12 = np.sum(d12_pairs, axis = 0)
-    sorted_indexes = np.argsort(-avg_d12)
-    features = sorted_indexes[0:10]
-    new_data = pca_data[:,features]
-    """
     
     return pca_data
 
@@ -197,11 +164,32 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     Returns:
         list[str]: A list of one-character strings representing the labels for each square.
     """
-    boards = split_to_boards(fvectors_test)
-    print(boards)
-    print(fvectors_test.shape)
-    print(model.keys())
-    return classify_squares(fvectors_test, model)
+    #print(fvectors_test.shape)                                  #(1600, 10)
+    #print(model.keys())                                         #dict_keys(['labels_train', 'eigen_vectors', 'fvectors_train'])
+    #print(classify_squares(fvectors_test, model).shape)         #(1600,)
+
+    #This section checks if a pawn is found on the first or last row, and if so, changes it to its second nearest neighbour
+    boards = split_to_boards(classify_squares(fvectors_test, model))
+    boardNum = 0
+    for board in boards:
+        for i, v in enumerate(board[:8]):                             #i.e. for index, value
+            if v == "p":
+                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+            elif v == "P":
+                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+        for i, v in enumerate(board[56:]):
+            if v == "p":
+                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+            elif v == "P":
+                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+        boardNum = boardNum + 1
+    
+    toReturn = []
+    for board in boards:
+        for i in range(len(board)):
+            toReturn.append(board[i])
+
+    return np.array(toReturn)
 
 def divergence(class1, class2):
     """compute a vector of 1-D divergences
@@ -235,9 +223,22 @@ def myPCAEV(data, n):
 
     return v
 
-def split_to_boards(data: np.ndarray):
-    num_squares = data.shape[0]
-    num_boards = num_squares/64
-    toReturn = np.zeros((num_boards, 64, 10))
-    for i in range(num_boards):
-        toReturn[i] = data[64*(i):64*(i+1), :]
+def split_to_boards(data: List[str]):
+    chunks = [data[x:x+64] for x in range(0, len(data), 64)]
+    return chunks
+
+def myNN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray, k: int):
+    n_images = test.shape[0]
+    x = np.dot(test, train.transpose())
+    modtest = np.sqrt(np.sum(test * test, axis=1))
+    modtrain = np.sqrt(np.sum(train * train, axis=1))
+    dist = x / np.outer(modtest, modtrain.transpose())     # cosine distance
+    if k > 1:
+        for i in range(k):
+            nearestToRemove = np.argmax(dist, axis=1)
+            index = np.where(nearestToRemove)
+            dist.remove(index)
+    
+    nearest = np.argmax(dist, axis=1)
+    label = train_labels[nearest]
+    return label
