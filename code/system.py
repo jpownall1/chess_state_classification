@@ -1,11 +1,12 @@
-"""Baseline classification system.
+"""Chess piece classification system for printed images of chess boards.
 
-Solution outline for the COM2004/3004 assignment.
+COM2004/3004 assignment
 
-This solution will run but the dimensionality reduction and
-the classifier are not doing anything useful, so it will
-produce a very poor result.
+The code in this file is used by both train.py and evaluate.py
+It implements the key system functionality, including the dimensionality
+reduction and classification steps needed for classifyng the chess board.
 
+author: Jordan Pownall, 190143099
 version: v1.0
 """
 
@@ -31,10 +32,6 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     Returns:
         list[str]: A list of one-character strings representing the labels for each square.
     """
-    #train.shape = 6400, 10 (so each individual image (100 images, 64 places) and its 10 features)
-    #test.shape = 1600, 10 (so each individual image (25 images, 64 places) and its 10 features)
-    #train_labels.shape = 6400 1D array (each corresponding class label to trains features)
-    #label.shape = 1600
     
     return myNN(train, train_labels, test)
 
@@ -70,8 +67,9 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
 def process_training_data(fvectors_train: np.ndarray, labels_train: np.ndarray) -> dict:
     """Process the labeled training data and return model parameters stored in a dictionary.
 
-    Note, the contents of the dictionary are up to you, and it can contain any serializable
-    data types stored under any keys. This dictionary will be passed to the classifier.
+    This method processes the training data and stores the results in a dictionary. The results
+    include the principal components of the training data, the training deature vectors themselves
+    and the feature vectors corresponding labels.
 
     Args:
         fvectors_train (np.ndarray): training data feature vectors stored as rows.
@@ -113,9 +111,10 @@ def images_to_feature_vectors(images: List[np.ndarray]) -> np.ndarray:
 def classify_squares(fvectors_test: np.ndarray, model: dict) -> List[str]:
     """Run classifier on a array of image feature vectors presented in an arbitrary order.
 
-    Note, the feature vectors stored in the rows of fvectors_test represent squares
-    to be classified. The ordering of the feature vectors is arbitrary, i.e., no information
-    about the position of the squares within the board is available.
+    This method uses the classify method on an array of feature vectors using the trest data.
+    It does this by using the NN algorithm in the classify function, and passes in the training and test
+    feature vectors and the test datas corresponding labels. The training labels and feature vectors 
+    are stored in the model.
 
     Args:
         fvectors_test (np.ndarray): An array in which feature vectors are stored as rows.
@@ -125,7 +124,6 @@ def classify_squares(fvectors_test: np.ndarray, model: dict) -> List[str]:
         list[str]: A list of one-character strings representing the labels for each square.
     """
 
-    # Get some data out of the model. It's up to you what you've stored in here
     fvectors_train = np.array(model["fvectors_train"])
     labels_train = np.array(model["labels_train"])
 
@@ -141,7 +139,7 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     The feature vectors for each square are guaranteed to be in 'board order'
 
     This method removes the pawns from the training data to find the next nearest neighbour for
-    pawns that are classified on the end rows (as pawns cannot be here) and modifies the classify_squares to
+    pawns that are classified on rows 1 and 8 (as pawns cannot be here) and modifies the classify_squares to
     reflect this change.
 
     Args:
@@ -186,6 +184,9 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
 def myPCAEV(data, n):
     """Apply PCA to reduce dimensionality of data matrix to n dimensions.
 
+    Computes and returns the principal components (eigenvectors of the dataset as column 
+    vectors) of the training data using a training dataset of feature vectors.
+
     Args:
         data (np.ndarray) = the data to be 
         n (int) = the number of dimensions to reduce down to
@@ -203,18 +204,35 @@ def myPCAEV(data, n):
     return v
 
 def split_to_boards(data: List[str]):
-    """Splits a large array of squares into boards for modification and testing
+    """Splits a large array of squares into boards for modification and testing.
+
+    This method splits a large array of labels into equal lists of 64 to represent
+    different boards.
 
     Args:
-        data (np.ndarray) = array of square labels
+        data (List[str]) = list of ordered square labels
 
     Returns:
-        dict: a dictionary storing the model data.
+        chunks (List[str]) = A list of lists representing each boards squares
     """
     chunks = [data[x:x+64] for x in range(0, len(data), 64)]
     return chunks
 
 def myNN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray):
+    """Classifies a dataset.
+    
+    Classifies a test dataset using nearest neighbour classification with
+    a training dataset and its corresponding labels.
+
+    Args:
+        train (np.ndarray): 2-D array storing the training feature vectors.
+        train_labels (np.ndarray): 1-D array storing the training labels.
+        test (np.ndarray): 2-D array storing the test feature vectors.
+
+    Returns:
+        label (List[str]) = A list of labels produced from classifying the sample 
+        vectors.
+    """
     if  (len(test.shape)==1):  # test only has one dimension
      test = np.expand_dims(test, axis=0)   
 

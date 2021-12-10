@@ -1,0 +1,33 @@
+# Chess assignment report
+
+(Replace the square-bracketed text with your own text. *Leave everything else unchanged.* Note, the reports are parsed to check word limits, etc. Changing the format may cause the parsing to fail.)
+
+## Feature Extraction (Max 200 Words)
+
+[First, I computed the principal components (eigenvectors of the dataset as column vectors) of the training data in process_training_data using my method, 'myPCAEV'. This is is then stored in the model with the label 'eigen_vectors'. The reduce_dimensions method is passed in this model, and I then use the matrix to transform the samples to having 10 dimensions (or features) by projecting those points onto the principal component axis.]
+
+## Classifier (Max 200 Words)
+
+[My classifier uses a super compact implementation of the Nearest Neighbour Algorithm in my method myNN. It takes the reduced training data, training labels and reduced test data (from the feature extraction phase). It uses a cosine distance (based on the angle between a pair of feature vectors) rather than the more commonly-employed Euclidean distance (straight distance between points) to find the closest labelled piece of training data to classify its test data's samples. The classifier returns a list of these closest labels for each sample. The classifier worked very well, scoring 97.6% on the clean data and 91.8% on the noisy.]
+
+## Full Board Classification (Max 200 Words)
+
+[In full board classification, I first perform the classification on all of the ordered squares passed into the method to obtain their predicted labels. I then separate this list into its own individual boards by splitting the data into equal subsets of 64. Then, in a loop, I check for any pawns, which are labels "p" or "P" on rows 1 or 8. If a pawn is found, classification is then applied on this single sample again, without the pawn data in the nearest neighbour classification. This means the chess piece will be labelled as its next nearest neighbour. This is then replaced in its individual board and once all of these pawns have been replaced the board is added to a 1 dimensional array to be returned. Once all of the boards labels have been altered and added to the array, the array of new labels is returned. This caused a 0.1% increase in accuracy for the noisy data.]
+
+## Performance
+
+My percentage correctness scores (to 1 decimal place) for the development data are as follows.
+
+Clean data:
+
+- Square mode: [97.6%]
+- Board mode: [97.6%]
+
+Noisy data:
+
+- Square mode: [91.8%]
+- Board mode: [91.9%]
+
+## Other information (Optional, Max 100 words)
+
+[Optional: highlight any significant aspects of your system that are NOT covered in the sections above]
