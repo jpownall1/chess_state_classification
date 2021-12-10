@@ -36,7 +36,7 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     #train_labels.shape = 6400 1D array (each corresponding class label to trains features)
     #label.shape = 1600
     
-    return myNN(train, train_labels, test, 1)
+    return myNN(train, train_labels, test)
 
 
 def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
@@ -51,18 +51,7 @@ def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
     Returns:
         np.ndarray: The reduced feature vectors.
     """
-    #When running evaluate i get the error: 'boolean index did not match indexed array along dimension 0; dimension 
-    #is 1600 but corresponding boolean dimension is 6400'
-    # When just running train,  it works ok, but when evaluating another part of the dictionary uses this method -
-    # the key is "fvectors_train", I dont understand what this is for?
-    # print(model.keys())                                #dict_keys(['labels_train', 'fvectors_train'])
-    # print(np.array(model['fvectors_train']).shape)      #(6400, 10)
-    # print(np.array(model['labels_train']).shape)        #(6400,)
-    # print(data.shape)                                   #(1600, 2500)
-    # print(np.array(model['fvectors_train']))            #just eigen values (i think?)
-    # print(new_data.shape)
-    #----------------------------------------------------------------------------------------------------------------------
-    #Using the PCA and learning the A matrix to transform 40 dimensions
+    #Using the PCA and learning the A matrix to transform to 10 dimensions
     v = np.array(model['eigen_vectors'])
 
     # compute the mean vector
@@ -91,10 +80,6 @@ def process_training_data(fvectors_train: np.ndarray, labels_train: np.ndarray) 
     Returns:
         dict: a dictionary storing the model data.
     """
-
-    # The design of this is entirely up to you.
-    # Note, if you are using an instance based approach, e.g. a nearest neighbour,
-    # then the model will need to store the dimensionally-reduced training data and labels.
     
     model = {}
     model["labels_train"] = labels_train.tolist()
@@ -114,7 +99,7 @@ def images_to_feature_vectors(images: List[np.ndarray]) -> np.ndarray:
         images (list[np.ndarray]): A list of input images to convert to feature vectors.
 
     Returns:
-        np.ndarray: An 2-D array in which the rows represent feature vectors.
+        fvectors (np.ndarray): An 2-D array in which the rows represent feature vectors.
     """
     h, w = images[0].shape
     n_features = h * w
@@ -153,67 +138,61 @@ def classify_squares(fvectors_test: np.ndarray, model: dict) -> List[str]:
 def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     """Run classifier on a array of image feature vectors presented in 'board order'.
 
-    The feature vectors for each square are guaranteed to be in 'board order', i.e.
-    you can infer the position on the board from the position of the feature vector
-    in the feature vector array.
+    The feature vectors for each square are guaranteed to be in 'board order'
+
+    This method removes the pawns from the training data to find the next nearest neighbour for
+    pawns that are classified on the end rows (as pawns cannot be here) and modifies the classify_squares to
+    reflect this change.
 
     Args:
         fvectors_test (np.ndarray): An array in which feature vectors are stored as rows.
         model (dict): A dictionary storing the model data.
 
     Returns:
-        list[str]: A list of one-character strings representing the labels for each square.
+        to_return (list[str]): A list of one-character strings representing the labels for each square.
     """
-    #print(fvectors_test.shape)                                  #(1600, 10)
-    #print(model.keys())                                         #dict_keys(['labels_train', 'eigen_vectors', 'fvectors_train'])
-    #print(classify_squares(fvectors_test, model).shape)         #(1600,)
 
+    #This part removes the pawns from the training data
+    train_data = np.array(model['fvectors_train'])
+    train_labels = np.array(model['labels_train'])
+    no_pawns_data = train_data[train_labels != "p", :]
+    no_pawns_labels = np.delete(train_labels, np.where(train_labels == "p"))
+    no_pawns_data = no_pawns_data[no_pawns_labels != "P", :]
+    no_pawns_labels = np.delete(no_pawns_labels, np.where(no_pawns_labels == "P"))
+    
     #This section checks if a pawn is found on the first or last row, and if so, changes it to its second nearest neighbour
     boards = split_to_boards(classify_squares(fvectors_test, model))
     boardNum = 0
     for board in boards:
         for i, v in enumerate(board[:8]):                             #i.e. for index, value
             if v == "p":
-                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+                board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
             elif v == "P":
-                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+                board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
         for i, v in enumerate(board[56:]):
             if v == "p":
-                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+                board[i+56] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i+56, :])[0]
             elif v == "P":
-                board[i] = myNN(np.array(model['fvectors_train']), np.array(model['labels_train']), np.array(fvectors_test[boardNum*64 + i]), 2)
+                board[i+56] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i+56, :])[0]
         boardNum = boardNum + 1
     
-    toReturn = []
+    to_return = []
     for board in boards:
         for i in range(len(board)):
-            toReturn.append(board[i])
+            to_return.append(board[i])
 
-    return np.array(toReturn)
-
-def divergence(class1, class2):
-    """compute a vector of 1-D divergences
-    
-    class1 - data matrix for class 1, each row is a sample
-    class2 - data matrix for class 2
-    
-    returns: d12 - a vector of 1-D divergence scores
-    """
-    # Compute the mean and variance of each feature vector element
-    m1 = np.mean(class1, axis=0)
-    m2 = np.mean(class2, axis=0)
-    v1 = np.var(class1, axis=0)
-    v2 = np.var(class2, axis=0)
-
-    # Plug mean and variances into the formula for 1-D divergence.
-    # (Note that / and * are being used to compute multiple 1-D
-    #  divergences without the need for a loop)
-    d12 = 0.5 * (v1 / v2 + v2 / v1 - 2) + 0.5 * (m1 - m2) * (m1 - m2) * (1.0 / v1 + 1.0 / v2)
-
-    return d12
+    return np.array(to_return)
 
 def myPCAEV(data, n):
-    """Apply PCA to reduce dimensionality of data matrix to n dimensions."""
+    """Apply PCA to reduce dimensionality of data matrix to n dimensions.
+
+    Args:
+        data (np.ndarray) = the data to be 
+        n (int) = the number of dimensions to reduce down to
+
+    Returns:
+        v (np.ndarray): the eigen values 
+    """
     # compute data covariance matrix
     covx = np.cov(data, rowvar=0)
     # compute first N pca axes
@@ -224,21 +203,26 @@ def myPCAEV(data, n):
     return v
 
 def split_to_boards(data: List[str]):
+    """Splits a large array of squares into boards for modification and testing
+
+    Args:
+        data (np.ndarray) = array of square labels
+
+    Returns:
+        dict: a dictionary storing the model data.
+    """
     chunks = [data[x:x+64] for x in range(0, len(data), 64)]
     return chunks
 
-def myNN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray, k: int):
+def myNN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray):
+    if  (len(test.shape)==1):  # test only has one dimension
+     test = np.expand_dims(test, axis=0)   
+
     n_images = test.shape[0]
     x = np.dot(test, train.transpose())
     modtest = np.sqrt(np.sum(test * test, axis=1))
     modtrain = np.sqrt(np.sum(train * train, axis=1))
     dist = x / np.outer(modtest, modtrain.transpose())     # cosine distance
-    if k > 1:
-        for i in range(k):
-            nearestToRemove = np.argmax(dist, axis=1)
-            index = np.where(nearestToRemove)
-            dist.remove(index)
-    
     nearest = np.argmax(dist, axis=1)
     label = train_labels[nearest]
     return label
