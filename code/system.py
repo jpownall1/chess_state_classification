@@ -162,22 +162,16 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
     boards = split_to_boards(classify_squares(fvectors_test, model))
     boardNum = 0
     for board in boards:
-        for i, v in enumerate(board[:8]):                             #i.e. for index, value
-            if v == "p":
-                board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
-            elif v == "P":
-                board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
-        for i, v in enumerate(board[56:]):
-            if v == "p":
-                board[i+56] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i+56, :])[0]
-            elif v == "P":
-                board[i+56] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i+56, :])[0]
+        for i, v in enumerate(board):                             #i.e. for index, value
+            if (i in [0,1,2,3,4,5,6,7,56,57,58,59,60,61,62,63]):
+                if v == "p":
+                    board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
+                elif v == "P":
+                    board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
         boardNum = boardNum + 1
     
-    to_return = []
-    for board in boards:
-        for i in range(len(board)):
-            to_return.append(board[i])
+    # Adds all fo the lists back into being a single list
+    to_return = [label for board in boards for label in board]
 
     return np.array(to_return)
 
