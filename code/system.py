@@ -19,7 +19,7 @@ N_DIMENSIONS = 10
 CLASS_LABELS = [".", "r", "R", "p", "P", "k", "K", "b", "B", "q", "Q", "n", "N"]
 
 
-def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> List[str]:
+def classify(train: np.ndarray, labels_train: np.ndarray, test: np.ndarray) -> List[str]:
     """Classify a set of feature vectors using a training set.
 
     Perform nearest neighbour classification.
@@ -32,8 +32,13 @@ def classify(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> L
     Returns:
         list[str]: A list of one-character strings representing the labels for each square.
     """
+
+    to_return = []
+
+    for test_sample in test:
+        to_return.append(my_KNN(train, labels_train, test_sample))
     
-    return myNN(train, train_labels, test)
+    return to_return
 
 
 def reduce_dimensions(data: np.ndarray, model: dict) -> np.ndarray:
@@ -165,9 +170,9 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
         for i, v in enumerate(board):                             #i.e. for index, value
             if (i in [0,1,2,3,4,5,6,7,56,57,58,59,60,61,62,63]):
                 if v == "p":
-                    board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
+                    board[i] = my_KNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
                 elif v == "P":
-                    board[i] = myNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
+                    board[i] = my_KNN(no_pawns_data, no_pawns_labels, fvectors_test[boardNum*64 + i, :])[0]
         boardNum = boardNum + 1
     
     # Adds all fo the lists back into being a single list
@@ -175,7 +180,7 @@ def classify_boards(fvectors_test: np.ndarray, model: dict) -> List[str]:
 
     return np.array(to_return)
 
-def myPCAEV(data, n):
+def myPCAEV(data, n) -> np.ndarray:
     """Apply PCA to reduce dimensionality of data matrix to n dimensions.
 
     Computes and returns the principal components (eigenvectors of the dataset as column 
@@ -197,7 +202,7 @@ def myPCAEV(data, n):
 
     return v
 
-def split_to_boards(data: List[str]):
+def split_to_boards(data: List[str]) -> List[str]:
     """Splits a large array of squares into boards for modification and testing.
 
     This method splits a large array of labels into equal lists of 64 to represent
@@ -210,9 +215,74 @@ def split_to_boards(data: List[str]):
         chunks (List[str]) = A list of lists representing each boards squares
     """
     chunks = [data[x:x+64] for x in range(0, len(data), 64)]
+    
     return chunks
 
-def myNN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray):
+def my_KNN(fvectors_train, labels_train, test_sample) -> str:
+    """Classifies a single test sample against a training dataset.
+    
+    Classifies a test sample using k nearest neighbour classification with
+    a training dataset and its corresponding labels.
+    It does this by finding the 10 nearest neighbours and then out of them finds
+    the most frequent label value.
+
+    Args:
+        fvectors_train (np.ndarray): 2-D array storing the training feature vectors.
+        labels_train (np.ndarray): 1-D array storing the training labels.
+        test_sample (np.ndarray): 1-D array storing the test feature vector.
+
+    Returns:
+        label (str) = A label produced from classifying the test vector.
+    """
+    #records all distances from test sample to each training sample
+    distances = np.linalg.norm(fvectors_train - test_sample, axis=1)
+        
+    # Sorts the distances from low to high to get the top k distances
+    distance_indexes_sorted = np.argsort(distances)
+
+    # Extracting top 10 neighbours index numbers
+    indexes = distance_indexes_sorted[:10]
+
+    # Getting the labels
+    k_labels = []
+    for i in indexes:
+        k_labels.append(labels_train[i])
+    
+    # Finding the most frequent label in k neighbours
+    elements,i = np.unique(k_labels,return_inverse=True)    # finds only different elements and their positions
+    counts = np.bincount(i)                                 # count each element
+    index = counts.argmax()                                 # finds the index of the most common element
+    label = elements[index]                                 # the most common label
+
+        
+    return label
+
+"""The following methods are my old methods used in the classification step. My report details why I chose to change from using these methods."""
+######################################################################################################################################################################################################
+def euclidean_distance(sample1, sample2) -> float:
+    """Finds the distance between two vectors.
+    
+    Calculates the euclidean distance between two vectors.
+
+    Args:
+        sample1 (np.ndarray): 1-D feature vector
+        sample2 (np.ndarray): 1-D feature vector
+
+    Returns:
+        distance (float) = A float representing the distance.
+    """
+    # This part finds the sum of the squared difference between each feature between two samples
+    squared_distance = 0.0
+    for i in range(len(sample1)-1):
+        squared_distance += (sample1[i] - sample2[i])**2
+	
+    # This is then square routed to find the euclidean distance
+    distance = np.sqrt(squared_distance)
+
+    return distance
+
+
+def my_NN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray) -> List[str]:
     """Classifies a dataset.
     
     Classifies a test dataset using nearest neighbour classification with
@@ -230,11 +300,11 @@ def myNN(train: np.ndarray, train_labels: np.ndarray, test: np.ndarray):
     if  (len(test.shape)==1):  # test only has one dimension
      test = np.expand_dims(test, axis=0)   
 
-    n_images = test.shape[0]
     x = np.dot(test, train.transpose())
     modtest = np.sqrt(np.sum(test * test, axis=1))
     modtrain = np.sqrt(np.sum(train * train, axis=1))
     dist = x / np.outer(modtest, modtrain.transpose())     # cosine distance
     nearest = np.argmax(dist, axis=1)
     label = train_labels[nearest]
+    
     return label
